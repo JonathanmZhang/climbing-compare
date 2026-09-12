@@ -1,0 +1,5 @@
+videos/
+output/
+.venv/
+__pycache__/
+*.pyc
