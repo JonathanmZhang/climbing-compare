@@ -1,5 +1,7 @@
 videos/
 output/
+viewer/frames/
 .venv/
 __pycache__/
 *.pyc
+.DS_Store

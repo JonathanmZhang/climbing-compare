@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Attempt Insights</title>
+  <link rel="stylesheet" href="/viewer/style.css">
+</head>
+<body>
+  <header>
+    <h1>Attempt Insights</h1>
+  </header>
+
+  <main>
+    <div class="top-nav">
+      <a id="backLink" class="nav-arrow" href="index.html">&larr; Viewer</a>
+      <span id="pairSubtitle" style="color: var(--text-dim); font-size: 14px;"></span>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="label">Average divergence</div>
+        <div class="value" id="avgDivergence">-</div>
+        <div class="sub">across comparable steps</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Peak divergence</div>
+        <div class="value" id="peakDivergence">-</div>
+        <div class="sub" id="peakTimestamps"></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Joints compared</div>
+        <div class="value" id="jointsCompared">-</div>
+        <div class="sub" id="jointsExcludedNote"></div>
+      </div>
+    </div>
+
+    <div class="joint-bars">
+      <h2>Per-joint average divergence</h2>
+      <div id="jointBars"></div>
+    </div>
+
+    <div class="screenshots">
+      <h2>Peak divergence moment</h2>
+      <div class="screenshot-grid">
+        <figure>
+          <img id="screenshotA" alt="video_a at peak divergence">
+          <figcaption id="captionA"></figcaption>
+        </figure>
+        <figure>
+          <img id="screenshotB" alt="video_b at peak divergence">
+          <figcaption id="captionB"></figcaption>
+        </figure>
+      </div>
+    </div>
+  </main>
+
+  <script src="/viewer/insights.js"></script>
+</body>
+</html>

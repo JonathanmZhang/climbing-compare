@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Climbing Attempt Viewer</title>
+  <link rel="stylesheet" href="/viewer/style.css">
+</head>
+<body>
+  <header>
+    <h1>Climbing Attempt Viewer</h1>
+    <select id="pairPicker"></select>
+  </header>
+
+  <main>
+    <div class="top-nav">
+      <span id="pairSubtitle" style="color: var(--text-dim); font-size: 14px;"></span>
+      <a id="insightsLink" class="nav-arrow" href="#">Insights &rarr;</a>
+    </div>
+
+    <div class="videos">
+      <div class="video-panel">
+        <canvas id="canvasA"></canvas>
+        <div class="video-label"><strong id="labelA">-</strong><span id="timeA">0.00s</span></div>
+      </div>
+      <div class="video-panel">
+        <canvas id="canvasB"></canvas>
+        <div class="video-label"><strong id="labelB">-</strong><span id="timeB">0.00s</span></div>
+      </div>
+    </div>
+
+    <div class="transport">
+      <button id="playPause">Play</button>
+      <input type="range" id="scrubber" min="0" max="0" value="0" step="1">
+      <span class="step-readout" id="stepReadout">step 0 / 0</span>
+    </div>
+
+    <div class="graph-panel">
+      <h2>Divergence over time</h2>
+      <svg id="graph" viewBox="0 0 1200 260" preserveAspectRatio="none"></svg>
+      <div class="legend">
+        <span><span class="swatch" style="background: var(--divergence-line)"></span> divergence</span>
+        <span><span class="swatch" style="background: var(--stall)"></span> DTW stall (excluded from stats)</span>
+        <span><span class="swatch" style="background: var(--ended)"></span> attempt ended (excluded from stats)</span>
+      </div>
+    </div>
+  </main>
+
+  <script src="/viewer/viewer.js"></script>
+</body>
+</html>

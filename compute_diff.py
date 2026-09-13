@@ -51,28 +51,31 @@ def parse_args() -> argparse.Namespace:
         default=20,
         help="Once a stall (frame_a or frame_b staying fixed across consecutive "
         "path steps - one side of the alignment stuck) exceeds this many steps, "
-        "trim all further steps starting from where that stall began. Targets "
-        "the actual failure mode directly rather than proximity to either "
-        "video's end (default: 20)",
+        "excise just those steps from the output and resume normal inclusion "
+        "once the stall ends. Targets the actual failure mode directly rather "
+        "than proximity to either video's end (default: 20)",
     )
     return parser.parse_args()
 
 
-def find_stall_cutoff(path: list, max_stall_length: int):
-    """Returns (cutoff_step, stall_info) for the first stall (a run of
-    consecutive steps where frame_a - or separately frame_b - stays the same)
-    that exceeds max_stall_length steps, or (None, None) if there is none.
-    cutoff_step is the step where that stall began - everything from there
-    onward should be dropped."""
-    earliest = None
+def find_stall_ranges(path: list, max_stall_length: int):
+    """Returns a list of {"start_step", "end_step", "side", "value", "length"}
+    for every run of consecutive steps where frame_a - or separately frame_b -
+    stays fixed, longer than max_stall_length. Sorted by start_step; these
+    runs never overlap (a DTW step always advances at least one of the two
+    indices, so frame_a and frame_b can't both be mid-stall at once)."""
+    stalls = []
     for side, key_fn in (("frame_a", lambda p: p["frame_a"]), ("frame_b", lambda p: p["frame_b"])):
         pos = 0
         for key, group in groupby(path, key=key_fn):
             length = sum(1 for _ in group)
-            if length > max_stall_length and (earliest is None or pos < earliest[0]):
-                earliest = (pos, {"side": side, "value": key, "length": length})
+            if length > max_stall_length:
+                stalls.append(
+                    {"start_step": pos, "end_step": pos + length - 1, "side": side, "value": key, "length": length}
+                )
             pos += length
-    return earliest if earliest is not None else (None, None)
+    stalls.sort(key=lambda s: s["start_step"])
+    return stalls
 
 
 def load(path: Path):
@@ -117,14 +120,20 @@ def main() -> int:
     frames_b = data_b["frames"]
 
     full_path = alignment["path"]
-    cutoff_step, stall_info = find_stall_cutoff(full_path, args.max_stall_length)
-    path_to_use = full_path[:cutoff_step] if cutoff_step is not None else full_path
-    n_trimmed = len(full_path) - len(path_to_use)
+    stalls = find_stall_ranges(full_path, args.max_stall_length)
+    excluded = [False] * len(full_path)
+    for stall in stalls:
+        for i in range(stall["start_step"], stall["end_step"] + 1):
+            excluded[i] = True
+    n_trimmed = sum(excluded)
 
     steps_out = []
     n_zero_valid = 0
 
-    for step, entry in enumerate(path_to_use):
+    for step, entry in enumerate(full_path):
+        if excluded[step]:
+            continue
+
         joints_a = frames_a[entry["frame_a"]]["joints"]
         joints_b = frames_b[entry["frame_b"]]["joints"]
 
@@ -158,18 +167,20 @@ def main() -> int:
             }
         )
 
-    if n_trimmed:
-        last_kept = (
-            f"t_a={steps_out[-1]['timestamp_a']:.2f}s, t_b={steps_out[-1]['timestamp_b']:.2f}s"
-            if steps_out
-            else "none kept"
-        )
+    if stalls:
         print(
-            f"Trimmed {n_trimmed} steps starting at step {cutoff_step}: {stall_info['side']}="
-            f"{stall_info['value']} stayed fixed for {stall_info['length']} consecutive steps "
-            f"(> --max-stall-length {args.max_stall_length}) -- last kept step: {last_kept}",
+            f"Excised {len(stalls)} stall(s), {n_trimmed} steps total "
+            f"(> --max-stall-length {args.max_stall_length}):",
             file=sys.stderr,
         )
+        for s in stalls:
+            t_a_start = full_path[s["start_step"]]["timestamp_a"]
+            t_a_end = full_path[s["end_step"]]["timestamp_a"]
+            print(
+                f"  steps {s['start_step']}-{s['end_step']} ({s['length']} steps, "
+                f"t_a={t_a_start:.2f}s-{t_a_end:.2f}s): {s['side']}={s['value']} stayed fixed",
+                file=sys.stderr,
+            )
 
     if n_zero_valid:
         print(
@@ -196,7 +207,7 @@ def main() -> int:
         "video_b": alignment["video_b"],
         "joints_used": joints_used,
         "max_stall_length": args.max_stall_length,
-        "trimmed_at_stall": stall_info,
+        "excised_stalls": stalls,
         "steps": steps_out,
     }
 
