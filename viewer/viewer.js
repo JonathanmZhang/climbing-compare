@@ -1,4 +1,10 @@
 const PAIRS_URL = "/viewer/data/pairs.json";
+// The viewer is served statically (port 8000) but app.py's Flask backend
+// runs separately (port 5000) - a relative fetch("/process") would resolve
+// against the viewer's own origin and hit the static server instead, which
+// has no such route. Must be absolute.
+const PROCESS_URL = "http://localhost:5000/process";
+const REALIGN_URL = "http://localhost:5000/realign";
 const TICK_MS = 1000 / 60;
 // How many frames ahead of the current playhead to keep preloaded in memory,
 // per side. Frames are downloaded well before they're needed so tick() never
@@ -30,6 +36,19 @@ const el = {
   scrubber: document.getElementById("scrubber"),
   stepReadout: document.getElementById("stepReadout"),
   graph: document.getElementById("graph"),
+  uploadForm: document.getElementById("uploadForm"),
+  fileA: document.getElementById("fileA"),
+  fileB: document.getElementById("fileB"),
+  uploadSubmit: document.getElementById("uploadSubmit"),
+  uploadStatus: document.getElementById("uploadStatus"),
+  realignPanel: document.getElementById("realignPanel"),
+  realignForm: document.getElementById("realignForm"),
+  endEventA: document.getElementById("endEventA"),
+  endEventB: document.getElementById("endEventB"),
+  endEventALabel: document.getElementById("endEventALabel"),
+  endEventBLabel: document.getElementById("endEventBLabel"),
+  realignSubmit: document.getElementById("realignSubmit"),
+  realignStatus: document.getElementById("realignStatus"),
 };
 
 // Loads and displays video frames as individual JPEGs drawn to a <canvas>,
@@ -146,6 +165,12 @@ async function loadPair(dataPath) {
   el.labelB.textContent = data.label_b;
   el.subtitle.textContent = `${data.joints_used.length} joints compared, ${data.joints_excluded.length} excluded for this pair`;
   el.insightsLink.href = `insights.html?pair=${encodeURIComponent(data.pair_name)}`;
+
+  el.endEventALabel.firstChild.textContent = `End time for ${data.label_a} (s)`;
+  el.endEventBLabel.firstChild.textContent = `End time for ${data.label_b} (s)`;
+  el.endEventA.value = "";
+  el.endEventB.value = "";
+  el.realignPanel.hidden = false;
 
   el.scrubber.max = String(data.steps.length - 1);
   currentStep = 0;
@@ -345,6 +370,121 @@ el.scrubber.addEventListener("input", () => {
   seekToStep(parseInt(el.scrubber.value, 10));
 });
 el.graph.addEventListener("click", graphClickToStep);
+
+// --- Shared "processing" flow for both the upload form (POST /process) and
+// the mark-attempt-end form (POST /realign): disable inputs, show a live
+// elapsed-time counter, then on success load the resulting pair straight
+// into the viewer via loadPair() - no page reload needed. On error, show
+// the failing step name and its stderr rather than a generic message. ---
+
+function setFormStatus(statusEl, message, kind) {
+  statusEl.hidden = false;
+  statusEl.textContent = message;
+  statusEl.className = "upload-status" + (kind ? ` upload-${kind}` : "");
+}
+
+async function runWithProcessingUI({ inputs, submitBtn, idleLabel, statusEl, sendRequest, onSuccess }) {
+  for (const input of inputs) input.disabled = true;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Processing...";
+
+  const startTime = Date.now();
+  const tick = () => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    setFormStatus(statusEl, `Processing - this can take a few minutes. Elapsed: ${elapsed}s`);
+  };
+  tick();
+  const timerId = setInterval(tick, 500);
+
+  const reEnable = () => {
+    clearInterval(timerId);
+    for (const input of inputs) input.disabled = false;
+    submitBtn.disabled = false;
+    submitBtn.textContent = idleLabel;
+  };
+
+  let res;
+  try {
+    res = await sendRequest();
+  } catch (err) {
+    reEnable();
+    setFormStatus(statusEl, `Request failed: ${err.message}`, "error");
+    return;
+  }
+
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    body = { error: `Server returned a non-JSON response (status ${res.status})` };
+  }
+
+  if (!res.ok) {
+    reEnable();
+    const step = body.step || "unknown step";
+    const detail = body.error || "unknown error";
+    const stderr = body.stderr ? `\n\n${body.stderr}` : "";
+    setFormStatus(statusEl, `Failed at ${step}: ${detail}${stderr}`, "error");
+    return;
+  }
+
+  setFormStatus(statusEl, `Done: ${body.pair_name}`, "success");
+  await onSuccess(body);
+  reEnable();
+}
+
+el.uploadForm.addEventListener("submit", async (evt) => {
+  evt.preventDefault();
+
+  const fileA = el.fileA.files[0];
+  const fileB = el.fileB.files[0];
+  if (!fileA || !fileB) return;
+
+  const formData = new FormData();
+  formData.append("video_a", fileA);
+  formData.append("video_b", fileB);
+
+  await runWithProcessingUI({
+    inputs: [el.fileA, el.fileB],
+    submitBtn: el.uploadSubmit,
+    idleLabel: "Process",
+    statusEl: el.uploadStatus,
+    sendRequest: () => fetch(PROCESS_URL, { method: "POST", body: formData }),
+    onSuccess: async (body) => {
+      el.uploadForm.reset();
+      await loadPairsManifest();
+      el.picker.value = body.data_path;
+      await loadPair(body.data_path);
+    },
+  });
+});
+
+el.realignForm.addEventListener("submit", async (evt) => {
+  evt.preventDefault();
+  if (!data) return;
+
+  const payload = { name_a: data.label_a, name_b: data.label_b };
+  if (el.endEventA.value !== "") payload.end_event_a = parseFloat(el.endEventA.value);
+  if (el.endEventB.value !== "") payload.end_event_b = parseFloat(el.endEventB.value);
+
+  await runWithProcessingUI({
+    inputs: [el.endEventA, el.endEventB],
+    submitBtn: el.realignSubmit,
+    idleLabel: "Re-align",
+    statusEl: el.realignStatus,
+    sendRequest: () =>
+      fetch(REALIGN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: async (body) => {
+      await loadPairsManifest();
+      el.picker.value = body.data_path;
+      await loadPair(body.data_path);
+    },
+  });
+});
 
 async function init() {
   await loadPairsManifest();

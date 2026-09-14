@@ -125,6 +125,11 @@ def extract_all_frames(video_path: Path, label: str, height: int = FRAME_HEIGHT)
     frames_dir.mkdir(parents=True, exist_ok=True)
 
     cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        raise RuntimeError(
+            f"overlay video not found or unreadable: {video_path} - "
+            f"did visualize_pose.py run for this attempt?"
+        )
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     orig_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     expected_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))

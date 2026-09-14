@@ -45,6 +45,24 @@ comparison apps).
      DTW limitation below: past this point the two climbs aren't really
      comparable, and this should be labeled as an "attempt ended" event in
      any display, not shown as an unexplained divergence spike.
+- **Stage 5 (Interactive Web Viewer): COMPLETE.** build_viewer_data.py,
+  viewer/index.html, and viewer/insights.html built and verified in a live
+  browser via Playwright, not just read. Two real bugs found and fixed
+  during that verification: (1) seeking a `<video>` element's .currentTime
+  on nearly every DTW path step was the actual cause of playback lag, not
+  fixable by re-encoding/downscaling alone — replaced with per-frame JPEG
+  extraction (build_viewer_data.py) plus canvas drawImage and a rolling
+  preload/eviction cache in viewer.js; (2) calling .play() on the video
+  elements while also scripting .currentTime made DTW stalls jitter
+  instead of freeze cleanly (native playback kept advancing underneath the
+  scripted seeks) — fixed by never calling .play(), driving everything
+  from the scripted loop instead. "Attempt ended" regions are supplied
+  manually per pair (--end-event-a/--end-event-b), not auto-detected —
+  there's no reliable signal for this in the joint-angle data alone.
+  Serving requires `python -m RangeHTTPServer`, not `http.server`, which
+  lacks the Range-request support video/large-file loading needs. True
+  upload-and-process was deliberately out of scope for this stage (see
+  Stage 6 below, now in progress).
 
 ## Footage notes and joint reliability findings
 - attempt_a.mp4: severe tracking dropout (60%), confirmed footage-specific
@@ -66,37 +84,28 @@ comparison apps).
   must be assessed per video pair, not assumed globally. torso_lean is the
   only joint reliable in every clip so far.
 
-## Current Stage: Stage 5 — Interactive Web Viewer
-A static, no-backend HTML/JS viewer that reads precomputed pipeline output
-(alignment path, divergence scores, video files) and lets the user watch
-two attempts synced side by side, plus a separate insights page with
-summary stats.
+## Current Stage: Stage 6 — Live Upload Backend
+A Flask backend to accept video uploads through the browser, replacing the
+manual "drop files into videos/" workflow the CLI pipeline has relied on
+through Stage 5.
 
-## Requirements for this stage
-
-### Main viewer page
-- Static data.json per attempt pair, combining: alignment path, per-step
-  divergence scores, joints used/excluded, video file paths
-- An attempt-pair PICKER (dropdown or list), not true video upload — lets
-  the user choose among already-processed pairs (e.g. f vs g, b vs e).
-  True upload-and-process is explicitly out of scope for now (would
-  require a backend to run the full Python pipeline live) — note this as
-  a future direction, not a current feature
-- Two videos side by side, synced via the alignment path (not real time),
-  each with its own displayed timestamp
-- Shared play/pause and scrub control
-- A divergence-over-time graph beneath the videos
-- Any point where one video's frames stall, or one attempt effectively
-  ends (per the Stage 4 findings above), shown as a labeled region
-  ("attempt ended" / "divergence"), not an unexplained spike
-- A right-arrow / nav control to the insights page
-
-### Insights page (second screen)
-- Summary stat cards: average divergence, biggest single divergence moment
-  (value + timestamp), how many joints were actually compared
-- Per-joint divergence breakdown (bar per joint, sorted by magnitude)
-- For the single biggest divergence moment: extract and show a frame
-  screenshot from each video at that timestamp, side by side
+## Progress so far
+- app.py built: a single `POST /process` route accepting two multipart
+  uploads (`video_a`, `video_b`). Filenames are sanitized via werkzeug's
+  `secure_filename` (blocks path traversal and OS-unsafe names) plus an
+  additional pass collapsing anything outside `[A-Za-z0-9_-]` to
+  underscores, matching the project's existing attempt_x naming
+  convention. Saved into `videos/<stem>.<ext>`. Currently returns a stub
+  JSON response (`{"status": "received", "name_a", "name_b"}`) — no
+  pipeline invocation yet.
+- Verified against a live server, not just read: missing-file and
+  wrong-method requests return clean 4xx JSON rather than crashing; a
+  filename with spaces/special characters sanitizes correctly; a
+  path-traversal payload (`../../etc/passwd weird name.MOV`) is
+  neutralized with no file written outside videos/.
+- Not yet started: invoking the actual pipeline (extract_pose.py through
+  build_viewer_data.py) on the uploaded pair, and surfacing the result
+  back in the viewer. Requirements for that work aren't defined yet.
 
 ## Known challenges to keep in mind
 - Climbing footage has more occlusion than typical use cases. No joint can
@@ -115,4 +124,5 @@ summary stats.
 ## Tech stack
 Python, OpenCV for video I/O, MediaPipe for pose estimation, scipy for
 smoothing filters, dtaidistance for DTW. Stage 5 viewer: static HTML/JS,
-no backend, no frontend framework.
+no frontend framework (the viewer itself still reads only precomputed
+files). Stage 6 adds Flask for the upload backend.

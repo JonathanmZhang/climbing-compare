@@ -12,6 +12,22 @@
   </header>
 
   <main>
+    <div class="upload-panel">
+      <h2>Process a new attempt pair</h2>
+      <form id="uploadForm">
+        <div class="upload-fields">
+          <label>Attempt A
+            <input type="file" id="fileA" name="video_a" accept="video/*" required>
+          </label>
+          <label>Attempt B
+            <input type="file" id="fileB" name="video_b" accept="video/*" required>
+          </label>
+          <button type="submit" id="uploadSubmit">Process</button>
+        </div>
+        <div id="uploadStatus" class="upload-status" hidden></div>
+      </form>
+    </div>
+
     <div class="top-nav">
       <span id="pairSubtitle" style="color: var(--text-dim); font-size: 14px;"></span>
       <a id="insightsLink" class="nav-arrow" href="#">Insights &rarr;</a>
@@ -42,6 +58,22 @@
         <span><span class="swatch" style="background: var(--stall)"></span> DTW stall (excluded from stats)</span>
         <span><span class="swatch" style="background: var(--ended)"></span> attempt ended (excluded from stats)</span>
       </div>
+    </div>
+
+    <div class="upload-panel" id="realignPanel" hidden>
+      <h2>Mark attempt end</h2>
+      <form id="realignForm">
+        <div class="upload-fields">
+          <label id="endEventALabel">End time for A (s)
+            <input type="number" id="endEventA" step="0.01" min="0" placeholder="optional">
+          </label>
+          <label id="endEventBLabel">End time for B (s)
+            <input type="number" id="endEventB" step="0.01" min="0" placeholder="optional">
+          </label>
+          <button type="submit" id="realignSubmit">Re-align</button>
+        </div>
+        <div id="realignStatus" class="upload-status" hidden></div>
+      </form>
     </div>
   </main>
 

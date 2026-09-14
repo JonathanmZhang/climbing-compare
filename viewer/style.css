@@ -102,6 +102,57 @@ main {
   text-align: right;
 }
 
+.upload-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.upload-panel h2 {
+  font-size: 14px;
+  margin: 0 0 12px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.upload-fields {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.upload-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.upload-fields input[type="file"] {
+  color: var(--text);
+  font-size: 13px;
+  max-width: 220px;
+}
+
+.upload-status {
+  margin-top: 12px;
+  font-size: 13px;
+  white-space: pre-wrap;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+}
+
+.upload-status.upload-error {
+  color: var(--ended);
+}
+
+.upload-status.upload-success {
+  color: #6fcf6f;
+}
+
 .graph-panel {
   background: var(--panel);
   border: 1px solid var(--border);
