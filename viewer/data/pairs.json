@@ -2,5 +2,9 @@
   {
     "name": "attempt_f_vs_attempt_g",
     "data_path": "/viewer/data/attempt_f_vs_attempt_g/data.json"
+  },
+  {
+    "name": "attempt_h_vs_attempt_i",
+    "data_path": "/viewer/data/attempt_h_vs_attempt_i/data.json"
   }
 ]

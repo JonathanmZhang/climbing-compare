@@ -48,11 +48,11 @@ def draw_skeleton(frame, landmarks_2d):
     for start_idx, end_idx in POSE_CONNECTIONS:
         if start_idx >= len(points) or end_idx >= len(points):
             continue
-        cv2.line(frame, points[start_idx], points[end_idx], LINE_COLOR, 2)
+        cv2.line(frame, points[start_idx], points[end_idx], LINE_COLOR, 3)
 
     for lm, point in zip(landmarks_2d, points):
         color = LOW_VIS_COLOR if lm["low_visibility"] else OK_COLOR
-        cv2.circle(frame, point, 4, color, -1)
+        cv2.circle(frame, point, 7, color, -1)
 
 
 def main() -> int:

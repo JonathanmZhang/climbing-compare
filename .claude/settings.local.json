@@ -163,7 +163,8 @@
       "Bash(curl -s -w \"\\\\nstatus: %{http_code}\\\\n\" -X POST http://localhost:5000/realign -H \"Content-Type: application/json\" -d '{\"name_a\": \"attempt_f\", \"name_b\": \"attempt_g\", \"end_event_a\": \"not-a-number\"}')",
       "Bash(time curl -s -w '\\\\nstatus: %{http_code}\\\\n' -X POST http://localhost:5000/realign -H 'Content-Type: application/json' -d '{\"name_a\": \"attempt_f\", \"name_b\": \"attempt_g\", \"end_event_a\": 18.5}')",
       "Bash(curl -sf -o /dev/null -w \"viewer \\(8000\\): %{http_code}\\\\n\" http://localhost:8000/viewer/index.html)",
-      "Bash(node realign-form-test.js)"
+      "Bash(node realign-form-test.js)",
+      "Bash(.venv\\\\Scripts\\\\python visualize_pose.py videos\\\\attempt_f.mp4)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Jonat\\Desktop\\Projects\\climbing-compare",
