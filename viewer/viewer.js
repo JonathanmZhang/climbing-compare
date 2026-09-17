@@ -1,10 +1,12 @@
 const PAIRS_URL = "/viewer/data/pairs.json";
 // The viewer is served statically (port 8000) but app.py's Flask backend
-// runs separately (port 5000) - a relative fetch("/process") would resolve
-// against the viewer's own origin and hit the static server instead, which
-// has no such route. Must be absolute.
-const PROCESS_URL = "http://localhost:5000/process";
-const REALIGN_URL = "http://localhost:5000/realign";
+// runs separately - a relative fetch("/process") would resolve against the
+// viewer's own origin and hit the static server instead, which has no such
+// route. Must be an absolute URL, so it's configurable rather than
+// hardcoded: set window.API_BASE_URL before this script loads (e.g. a
+// <script> tag in index.html) to point at a non-default backend; defaults
+// to local dev otherwise.
+const API_BASE_URL = window.API_BASE_URL || "http://localhost:5000";
 const TICK_MS = 1000 / 60;
 // How many frames ahead of the current playhead to keep preloaded in memory,
 // per side. Frames are downloaded well before they're needed so tick() never
@@ -449,7 +451,7 @@ el.uploadForm.addEventListener("submit", async (evt) => {
     submitBtn: el.uploadSubmit,
     idleLabel: "Process",
     statusEl: el.uploadStatus,
-    sendRequest: () => fetch(PROCESS_URL, { method: "POST", body: formData }),
+    sendRequest: () => fetch(`${API_BASE_URL}/process`, { method: "POST", body: formData }),
     onSuccess: async (body) => {
       el.uploadForm.reset();
       await loadPairsManifest();
@@ -473,7 +475,7 @@ el.realignForm.addEventListener("submit", async (evt) => {
     idleLabel: "Re-align",
     statusEl: el.realignStatus,
     sendRequest: () =>
-      fetch(REALIGN_URL, {
+      fetch(`${API_BASE_URL}/realign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

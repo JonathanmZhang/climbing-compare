@@ -1,0 +1,53 @@
+# No top-level `version:` key - not required by current Docker Compose and
+# recent versions warn it's deprecated.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Fixes the container's own name AND is what makes it addressable as
+    # "backend" on the compose-created internal network - though the
+    # service key above (`backend:`) already provides that DNS name on its
+    # own; this just also pins the literal container name for convenience
+    # (docker logs backend, docker exec backend ...).
+    container_name: backend
+    ports:
+      - "5000:5000"
+    volumes:
+      # Written by app.py's /process route (file_a.save()/file_b.save()).
+      - videos:/app/videos
+      # Written by extract_pose.py, visualize_pose.py, compute_angles.py,
+      # align.py, compute_diff.py - all the per-attempt and per-pair
+      # pipeline output.
+      - output:/app/output
+      # Written by build_viewer_data.py, read by the viewer service below -
+      # same named volumes, shared across both services, not independent
+      # ones, since the viewer container only ever sees what's actually
+      # mounted into it.
+      - viewer_data:/app/viewer/data
+      - viewer_frames:/app/viewer/frames
+
+  viewer:
+    build:
+      context: .
+      dockerfile: viewer.Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Same named volumes as backend's - this is how the viewer actually
+      # sees processed pairs rather than only the static files baked into
+      # its own image at build time. videos/ and output/ aren't mounted
+      # here: nothing under viewer/index.html, insights.html, or viewer.js
+      # references those paths - the viewer only ever serves
+      # /viewer/data/... and /viewer/frames/....
+      - viewer_data:/app/viewer/data
+      - viewer_frames:/app/viewer/frames
+    depends_on:
+      - backend
+
+volumes:
+  videos:
+  output:
+  viewer_data:
+  viewer_frames:
